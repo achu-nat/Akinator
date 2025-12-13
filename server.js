@@ -1,4 +1,4 @@
-/ ==============================================================================
+// ==============================================================================
 // AKINATOR BATTLE - BACKEND SERVER
 // Node.js + Express + PostgreSQL + JWT + Bcrypt
 // ==============================================================================
@@ -34,8 +34,8 @@ const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' 
-    ? { rejectUnauthorized: false } 
+  ssl: process.env.NODE_ENV === 'production'
+    ? { rejectUnauthorized: false }
     : false
 });
 
@@ -63,7 +63,7 @@ const authenticateToken = (req, res, next) => {
   const token = authHeader && authHeader.split(' ')[1]; // Format: "Bearer TOKEN"
 
   if (!token) {
-    return res.status(401).json({ 
+    return res.status(401).json({
       error: 'Access token required',
       message: 'Please log in to access this resource'
     });
@@ -72,12 +72,12 @@ const authenticateToken = (req, res, next) => {
   // Verify token
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
-      return res.status(403).json({ 
+      return res.status(403).json({
         error: 'Invalid or expired token',
         message: 'Please log in again'
       });
     }
-    
+
     // Attach user data to request object
     req.user = user;
     next();
@@ -99,29 +99,29 @@ app.post('/api/auth/register', async (req, res) => {
 
     // ============= VALIDATION =============
     if (!username || !email || !password) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'All fields are required',
         fields: { username: !username, email: !email, password: !password }
       });
     }
 
     if (username.length < 3) {
-      return res.status(400).json({ 
-        error: 'Username must be at least 3 characters' 
+      return res.status(400).json({
+        error: 'Username must be at least 3 characters'
       });
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ 
-        error: 'Password must be at least 6 characters' 
+      return res.status(400).json({
+        error: 'Password must be at least 6 characters'
       });
     }
 
     // Email format validation (basic)
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return res.status(400).json({ 
-        error: 'Invalid email format' 
+      return res.status(400).json({
+        error: 'Invalid email format'
       });
     }
 
@@ -132,7 +132,7 @@ app.post('/api/auth/register', async (req, res) => {
     );
 
     if (existingUser.rows.length > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Email already registered',
         message: 'Please use a different email or try logging in'
       });
@@ -145,7 +145,7 @@ app.post('/api/auth/register', async (req, res) => {
     );
 
     if (existingUsername.rows.length > 0) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Username already taken',
         message: 'Please choose a different username'
       });
@@ -168,8 +168,8 @@ app.post('/api/auth/register', async (req, res) => {
 
     // ============= GENERATE JWT TOKEN =============
     const token = jwt.sign(
-      { 
-        userId: user.id, 
+      {
+        userId: user.id,
         email: user.email,
         username: user.username
       },
@@ -195,7 +195,7 @@ app.post('/api/auth/register', async (req, res) => {
 
   } catch (error) {
     console.error('Registration error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Server error during registration',
       message: 'Please try again later'
     });
@@ -213,8 +213,8 @@ app.post('/api/auth/login', async (req, res) => {
 
     // ============= VALIDATION =============
     if (!email || !password) {
-      return res.status(400).json({ 
-        error: 'Email and password are required' 
+      return res.status(400).json({
+        error: 'Email and password are required'
       });
     }
 
@@ -225,7 +225,7 @@ app.post('/api/auth/login', async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Invalid email or password',
         message: 'Please check your credentials'
       });
@@ -238,7 +238,7 @@ app.post('/api/auth/login', async (req, res) => {
     const validPassword = await bcrypt.compare(password, user.password_hash);
 
     if (!validPassword) {
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Invalid email or password',
         message: 'Please check your credentials'
       });
@@ -246,8 +246,8 @@ app.post('/api/auth/login', async (req, res) => {
 
     // ============= GENERATE JWT TOKEN =============
     const token = jwt.sign(
-      { 
-        userId: user.id, 
+      {
+        userId: user.id,
         email: user.email,
         username: user.username
       },
@@ -273,7 +273,7 @@ app.post('/api/auth/login', async (req, res) => {
 
   } catch (error) {
     console.error('Login error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Server error during login',
       message: 'Please try again later'
     });
@@ -295,8 +295,8 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
     );
 
     if (result.rows.length === 0) {
-      return res.status(404).json({ 
-        error: 'User not found' 
+      return res.status(404).json({
+        error: 'User not found'
       });
     }
 
@@ -304,7 +304,7 @@ app.get('/api/auth/profile', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Profile error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Server error',
       message: 'Failed to fetch profile'
     });
@@ -321,14 +321,14 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
-      return res.status(400).json({ 
-        error: 'Current and new passwords required' 
+      return res.status(400).json({
+        error: 'Current and new passwords required'
       });
     }
 
     if (newPassword.length < 6) {
-      return res.status(400).json({ 
-        error: 'New password must be at least 6 characters' 
+      return res.status(400).json({
+        error: 'New password must be at least 6 characters'
       });
     }
 
@@ -343,8 +343,8 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
     // Verify current password
     const validPassword = await bcrypt.compare(currentPassword, user.password_hash);
     if (!validPassword) {
-      return res.status(401).json({ 
-        error: 'Current password is incorrect' 
+      return res.status(401).json({
+        error: 'Current password is incorrect'
       });
     }
 
@@ -361,8 +361,8 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Change password error:', error);
-    res.status(500).json({ 
-      error: 'Failed to change password' 
+    res.status(500).json({
+      error: 'Failed to change password'
     });
   }
 });
@@ -387,7 +387,7 @@ app.post('/api/game/start', authenticateToken, async (req, res) => {
 
     const game = result.rows[0];
 
-    res.json({ 
+    res.json({
       gameId: game.id,
       userId: game.user_id,
       startedAt: game.started_at
@@ -397,7 +397,7 @@ app.post('/api/game/start', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Start game error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to start game',
       message: 'Please try again'
     });
@@ -418,8 +418,8 @@ app.post('/api/game/answer', authenticateToken, async (req, res) => {
 
     // Optional: Store answers in a separate table for analytics
     // For now, we just acknowledge receipt
-    
-    res.json({ 
+
+    res.json({
       success: true,
       gameId,
       questionNum,
@@ -428,8 +428,8 @@ app.post('/api/game/answer', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Answer error:', error);
-    res.status(500).json({ 
-      error: 'Failed to submit answer' 
+    res.status(500).json({
+      error: 'Failed to submit answer'
     });
   }
 });
@@ -445,8 +445,8 @@ app.post('/api/game/end', authenticateToken, async (req, res) => {
 
     // ============= VALIDATION =============
     if (typeof score !== 'number' || score < 0) {
-      return res.status(400).json({ 
-        error: 'Invalid score' 
+      return res.status(400).json({
+        error: 'Invalid score'
       });
     }
 
@@ -460,8 +460,8 @@ app.post('/api/game/end', authenticateToken, async (req, res) => {
     );
 
     if (gameResult.rows.length === 0) {
-      return res.status(404).json({ 
-        error: 'Game not found or unauthorized' 
+      return res.status(404).json({
+        error: 'Game not found or unauthorized'
       });
     }
 
@@ -477,7 +477,7 @@ app.post('/api/game/end', authenticateToken, async (req, res) => {
     // ============= UPDATE USER STATS =============
     const newBest = Math.max(currentBest, score);
     const isNewRecord = score > currentBest;
-    
+
     const updateResult = await pool.query(
       `UPDATE users 
        SET best_score = $1, 
@@ -489,7 +489,7 @@ app.post('/api/game/end', authenticateToken, async (req, res) => {
     );
 
     // ============= SEND RESPONSE =============
-    res.json({ 
+    res.json({
       message: 'Game completed',
       game: gameResult.rows[0],
       user: updateResult.rows[0],
@@ -501,7 +501,7 @@ app.post('/api/game/end', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('End game error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to end game',
       message: 'Your progress may not have been saved'
     });
@@ -515,7 +515,7 @@ app.post('/api/game/end', authenticateToken, async (req, res) => {
 app.get('/api/game/history', authenticateToken, async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
-    
+
     const result = await pool.query(
       `SELECT id, score, started_at, completed_at
        FROM games
@@ -532,8 +532,8 @@ app.get('/api/game/history', authenticateToken, async (req, res) => {
 
   } catch (error) {
     console.error('Game history error:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch game history' 
+    res.status(500).json({
+      error: 'Failed to fetch game history'
     });
   }
 });
@@ -550,7 +550,7 @@ app.get('/api/game/history', authenticateToken, async (req, res) => {
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 100;
-    
+
     const result = await pool.query(
       `SELECT 
          id, 
@@ -569,7 +569,7 @@ app.get('/api/leaderboard', async (req, res) => {
 
   } catch (error) {
     console.error('Leaderboard error:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to fetch leaderboard',
       message: 'Please try again later'
     });
@@ -594,15 +594,15 @@ app.get('/api/leaderboard/rank/:userId', async (req, res) => {
       [userId]
     );
 
-    res.json({ 
+    res.json({
       userId,
       rank: parseInt(result.rows[0].rank)
     });
 
   } catch (error) {
     console.error('Rank error:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch rank' 
+    res.status(500).json({
+      error: 'Failed to fetch rank'
     });
   }
 });
@@ -632,8 +632,8 @@ app.get('/api/stats/global', async (req, res) => {
 
   } catch (error) {
     console.error('Global stats error:', error);
-    res.status(500).json({ 
-      error: 'Failed to fetch statistics' 
+    res.status(500).json({
+      error: 'Failed to fetch statistics'
     });
   }
 });
@@ -650,8 +650,8 @@ app.get('/api/health', async (req, res) => {
   try {
     // Test database connection
     await pool.query('SELECT 1');
-    
-    res.json({ 
+
+    res.json({
       status: 'ok',
       message: 'Akinator Battle API is running',
       timestamp: new Date().toISOString(),
@@ -708,7 +708,7 @@ app.get('/', (req, res) => {
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     error: 'Not Found',
     message: `Route ${req.method} ${req.path} does not exist`,
     availableRoutes: '/ or /api/health for info'
@@ -718,7 +718,7 @@ app.use((req, res) => {
 // Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
-  res.status(500).json({ 
+  res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
