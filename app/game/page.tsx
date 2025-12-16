@@ -264,10 +264,21 @@ export default function Game2048() {
 
 // Utility for colors
 function getTileColor(value: number) {
-    const colors: {[key:number]: string} = {
-        0: '#cdc1b4', 2: '#eee4da', 4: '#ede0c8', 8: '#f2b179',
-        16: '#f59563', 32: '#f67c5f', 64: '#f65e3b', 128: '#edcf72',
-        256: '#edcc61', 512: '#edc850', 1024: '#edc53f', 2048: '#edc22e'
+    const colors: { [key: number]: string } = {
+        0: '#e5e5e5',      // light gray
+        2: '#f4c7c3',      // muted pastel pink
+        4: '#f3d2a9',      // darker peach
+        8: '#f0d774ff',      // warm pastel yellow
+        16: '#cfe6b8',     // soft green
+        32: '#a5d6e3ff',     // soft cyan
+        64: '#cfc8ee',     // lavender
+        128: '#e9bfdc',    // dusty rose
+        256: '#f3bcbc',    // coral pastel
+        512: '#cfe3b1',    // mint
+        1024: '#bfd6f6',   // periwinkle
+        2048: '#f4dc8f'    // muted gold
     };
-    return colors[value] || '#3c3a32';
+
+    return colors[value] || '#d1d5db'; // fallback neutral
 }
+
