@@ -2,7 +2,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -12,31 +13,35 @@ export default function LoginPage() {
     e.preventDefault();
     setError("");
 
-    // Using the internal API route (port 3000) instead of 3001
-    const res = await fetch("/api/auth/login", {
+    const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ username, email, password })
     });
 
     const data = await res.json();
 
     if (!res.ok) {
-      setError(data.error || "Login failed");
+      setError(data.error || "Registration failed");
     } else {
-      // Save token and user info
       localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      // Force a reload to update Navbar state, then go to dashboard
-      window.location.href = "/dashboard"; 
+      window.location.href = "/dashboard";
     }
   }
 
   return (
     <div style={{ maxWidth: '400px', margin: '50px auto' }}>
-      <h1>Login</h1>
+      <h1>Create Account</h1>
       {error && <p style={{ color: 'red' }}>{error}</p>}
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <input 
+          type="text" 
+          value={username} 
+          onChange={e => setUsername(e.target.value)} 
+          placeholder="Username" 
+          required 
+          style={{ padding: '8px' }}
+        />
         <input 
           type="email" 
           value={email} 
@@ -49,11 +54,11 @@ export default function LoginPage() {
           type="password" 
           value={password} 
           onChange={e => setPassword(e.target.value)} 
-          placeholder="Password" 
+          placeholder="Password (min 6 chars)" 
           required 
           style={{ padding: '8px' }}
         />
-        <button type="submit" style={{ padding: '10px', background: '#0070f3', color: 'white', border: 'none' }}>Login</button>
+        <button type="submit" style={{ padding: '10px', background: '#28a745', color: 'white', border: 'none' }}>Sign Up</button>
       </form>
     </div>
   );

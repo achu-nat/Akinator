@@ -15,8 +15,8 @@ export async function POST(req) {
 
         const result = await pool.query(
             `INSERT INTO users (username, email, password_hash)
-       VALUES ($1, $2, $3)
-       RETURNING id, username, email`,
+             VALUES ($1, $2, $3)
+             RETURNING id, username, email`,
             [username, email.toLowerCase(), hash]
         );
 
@@ -29,6 +29,18 @@ export async function POST(req) {
         return NextResponse.json({ token, user: result.rows[0] });
 
     } catch (err) {
+        console.error("Registration Error:", err);
+
+        // Handle Duplicate User/Email errors specifically
+        if (err.code === '23505') {
+            if (err.constraint === 'users_username_unique') {
+                return NextResponse.json({ error: 'Username already taken' }, { status: 409 });
+            }
+            if (err.constraint === 'users_email_key' || err.detail.includes('email')) {
+                return NextResponse.json({ error: 'Email already registered' }, { status: 409 });
+            }
+        }
+
         return NextResponse.json(
             { error: 'Registration failed' },
             { status: 500 }

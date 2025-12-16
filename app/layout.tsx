@@ -1,9 +1,15 @@
-import type { ReactNode } from "react";
+import Navbar from "./components/Navbar";
+// import "./globals.css"; // Ensure you have some basic styles or remove this line
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body style={{ margin: 0, fontFamily: 'sans-serif' }}>
+        <Navbar />
+        <main style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+          {children}
+        </main>
+      </body>
     </html>
   );
 }
