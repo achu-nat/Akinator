@@ -1,16 +1,31 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function Game2048() {
+function GameContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [game, setGame] = useState<any>(null);
   const [inputCode, setInputCode] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Check for Resume ID in URL
+  useEffect(() => {
+    const resumeId = searchParams.get('id');
+    if (resumeId && !game) {
+       fetch(`/api/game/state?id=${resumeId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+       })
+       .then(res => res.json())
+       .then(data => {
+          if (!data.error) setGame(data);
+       });
+    }
+  }, [searchParams]);
+
   // --- GAME LOOP (POLLING) ---
   useEffect(() => {
-    if (!game) return;
+    if (!game || game.status === 'over') return;
 
     const interval = setInterval(() => {
       fetch(`/api/game/state?id=${game.id}`, {
@@ -18,13 +33,13 @@ export default function Game2048() {
       })
       .then(res => res.json())
       .then(data => {
-        // Only update if board changed to avoid jitter
-        setGame(prev => JSON.stringify(prev?.board_state) !== JSON.stringify(data.board_state) ? data : prev);
+        // Only update if board changed or status changed
+        setGame(prev => (JSON.stringify(prev?.board_state) !== JSON.stringify(data.board_state) || prev?.status !== data.status) ? data : prev);
       });
-    }, 1000); // Check for updates every 1 second
+    }, 1000); 
 
     return () => clearInterval(interval);
-  }, [game?.id]);
+  }, [game?.id, game?.status]);
 
   // --- KEYBOARD CONTROLS ---
   const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
@@ -46,7 +61,7 @@ export default function Game2048() {
         },
         body: JSON.stringify({ gameId: game.id, direction: dir })
       });
-      // Force immediate update
+      // Force update
       const res = await fetch(`/api/game/state?id=${game.id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
@@ -61,14 +76,18 @@ export default function Game2048() {
 
 
   // --- LOBBY FUNCTIONS ---
-  const createGame = async () => {
+  const createGame = async (mode: 'solo' | 'collab') => {
     setLoading(true);
     const res = await fetch("/api/game/create", {
         method: "POST",
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        headers: { 
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}` 
+        },
+        body: JSON.stringify({ mode }) 
     });
     const data = await res.json();
-    setGame(data); // Will trigger polling
+    setGame(data);
     setLoading(false);
   };
 
@@ -84,7 +103,6 @@ export default function Game2048() {
     });
     const data = await res.json();
     if (data.success) {
-        // Fetch full initial state
         const stateRes = await fetch(`/api/game/state?id=${data.gameId}`, {
             headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
         });
@@ -95,38 +113,74 @@ export default function Game2048() {
     setLoading(false);
   };
 
+  const exitGame = async () => {
+    if (!game) return;
+
+    // Notify backend to discard if collab, or just leave if solo
+    await fetch("/api/game/quit", {
+        method: "POST",
+        headers: { 
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}` 
+        },
+        body: JSON.stringify({ gameId: game.id })
+    });
+
+    router.push("/dashboard");
+  };
+
   // --- RENDER: LOBBY ---
   if (!game) {
     return (
-      <div style={{ maxWidth: '400px', margin: '50px auto', textAlign: 'center' }}>
-        <h1>2048 Co-op</h1>
-        <div style={{ marginBottom: '40px' }}>
-            <button onClick={createGame} disabled={loading} style={{ padding: '15px 30px', fontSize: '1.2rem', background: '#0070f3', color: 'white', border: 'none', borderRadius: '5px' }}>
-                Create New Room
+      <div style={{ maxWidth: '500px', margin: '50px auto', textAlign: 'center' }}>
+        <h1>2048 Battle</h1>
+        
+        <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', marginBottom: '40px' }}>
+            <button onClick={() => createGame('solo')} disabled={loading} style={{ padding: '20px', fontSize: '1.2rem', background: '#e0a800', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', width: '150px' }}>
+                Solo Mode
+            </button>
+            <button onClick={() => createGame('collab')} disabled={loading} style={{ padding: '20px', fontSize: '1.2rem', background: '#0070f3', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', width: '150px' }}>
+                Co-op Room
             </button>
         </div>
-        <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-            <input 
-                value={inputCode} 
-                onChange={e => setInputCode(e.target.value.toUpperCase())}
-                placeholder="ENTER CODE" 
-                style={{ padding: '10px', fontSize: '1.2rem', textTransform: 'uppercase', width: '120px' }}
-            />
-            <button onClick={joinGame} disabled={loading} style={{ padding: '10px 20px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px' }}>
-                Join
-            </button>
+
+        <div style={{ borderTop: '1px solid #ccc', paddingTop: '30px' }}>
+            <h3>Join Existing Room</h3>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                <input 
+                    value={inputCode} 
+                    onChange={e => setInputCode(e.target.value.toUpperCase())}
+                    placeholder="ENTER CODE" 
+                    style={{ padding: '10px', fontSize: '1.2rem', textTransform: 'uppercase', width: '120px' }}
+                />
+                <button onClick={joinGame} disabled={loading} style={{ padding: '10px 20px', background: '#28a745', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                    Join
+                </button>
+            </div>
         </div>
       </div>
     );
   }
 
   // --- RENDER: GAME BOARD ---
+  const isSolo = !game.guest_id && !game.guest_name; // guest_name comes from JOIN in state route
+
   return (
     <div style={{ maxWidth: '500px', margin: '20px auto', textAlign: 'center', fontFamily: 'sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
+      
+      {/* Header Info */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
          <div style={{ textAlign: 'left' }}>
-            <h2>Room: {game.game_code}</h2>
-            <p>Players: {game.host_name} {game.guest_name ? `& ${game.guest_name}` : '(Waiting...)'}</p>
+            {isSolo ? (
+                <h2 style={{margin: 0}}>Solo Run</h2>
+            ) : (
+                <>
+                    <h2 style={{margin: 0}}>Room: {game.game_code}</h2>
+                    <p style={{margin: '5px 0'}}>
+                        {game.host_name} & {game.guest_name || '(Waiting...)'}
+                    </p>
+                </>
+            )}
          </div>
          <div style={{ textAlign: 'right' }}>
             <h2 style={{ fontSize: '2rem', margin: 0 }}>{game.score}</h2>
@@ -134,6 +188,7 @@ export default function Game2048() {
          </div>
       </div>
 
+      {/* Grid */}
       <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(4, 1fr)', 
@@ -162,17 +217,40 @@ export default function Game2048() {
         )}
       </div>
 
+      {/* Status Messages */}
       {game.status === 'over' && (
-          <h2 style={{ color: 'red', marginTop: '20px' }}>GAME OVER!</h2>
+          <div style={{ marginTop: '20px' }}>
+            <h2 style={{ color: 'red' }}>GAME OVER!</h2>
+            <button onClick={() => router.push('/dashboard')} style={{ padding: '10px 20px', background: '#333', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                Back to Dashboard
+            </button>
+          </div>
       )}
       
       {game.status === 'waiting' && (
           <p style={{ marginTop: '20px', color: '#666' }}>Waiting for Player 2 to join...</p>
       )}
 
-      <p style={{ marginTop: '20px', color: '#888' }}>Use Arrow Keys to Move</p>
+      {/* Controls */}
+      {game.status !== 'over' && (
+          <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ color: '#888' }}>Use Arrow Keys to Move</span>
+              <button onClick={exitGame} style={{ padding: '8px 16px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+                  {isSolo ? "Save & Exit" : "Discard & Exit"}
+              </button>
+          </div>
+      )}
     </div>
   );
+}
+
+// Wrap in Suspense for useSearchParams
+export default function Game2048() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <GameContent />
+        </Suspense>
+    );
 }
 
 // Helper for Tile Colors
