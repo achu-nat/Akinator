@@ -30,7 +30,7 @@ export default function Navbar() {
          or just leave it pointing to dashboard/login 
       */}
       <Link href={isLoggedIn ? "/dashboard" : "/login"} style={{ color: 'white', textDecoration: 'none', fontWeight: 'bold' }}>
-        Akinator Battle
+        2048 Battle
       </Link>
       
       <div style={{ marginLeft: 'auto', display: 'flex', gap: '20px' }}>
