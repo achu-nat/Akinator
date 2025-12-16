@@ -9,7 +9,7 @@ function GameContent() {
   const [inputCode, setInputCode] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Check for Resume ID in URL
+  // --- 1. RESUME GAME LOGIC ---
   useEffect(() => {
     const resumeId = searchParams.get('id');
     if (resumeId && !game) {
@@ -23,8 +23,9 @@ function GameContent() {
     }
   }, [searchParams]);
 
-  // --- GAME LOOP (POLLING) ---
+  // --- 2. GAME LOOP (POLLING) ---
   useEffect(() => {
+    // Poll if game exists and isn't over
     if (!game || game.status === 'over') return;
 
     const interval = setInterval(() => {
@@ -33,15 +34,20 @@ function GameContent() {
       })
       .then(res => res.json())
       .then(data => {
-        // Only update if board changed or status changed
-        setGame(prev => (JSON.stringify(prev?.board_state) !== JSON.stringify(data.board_state) || prev?.status !== data.status) ? data : prev);
+        // Only update state if board or status changed to prevent jitter
+        setGame((prev: any) => {
+            if (JSON.stringify(prev?.board_state) !== JSON.stringify(data.board_state) || prev?.status !== data.status || prev?.guest_id !== data.guest_id) {
+                return data;
+            }
+            return prev;
+        });
       });
     }, 1000); 
 
     return () => clearInterval(interval);
   }, [game?.id, game?.status]);
 
-  // --- KEYBOARD CONTROLS ---
+  // --- 3. CONTROLS ---
   const handleKeyDown = useCallback(async (e: KeyboardEvent) => {
     if (!game || game.status !== 'active') return;
     
@@ -61,7 +67,7 @@ function GameContent() {
         },
         body: JSON.stringify({ gameId: game.id, direction: dir })
       });
-      // Force update
+      // Immediate fetch for responsiveness
       const res = await fetch(`/api/game/state?id=${game.id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
@@ -75,7 +81,7 @@ function GameContent() {
   }, [handleKeyDown]);
 
 
-  // --- LOBBY FUNCTIONS ---
+  // --- 4. ACTIONS ---
   const createGame = async (mode: 'solo' | 'collab') => {
     setLoading(true);
     const res = await fetch("/api/game/create", {
@@ -84,6 +90,7 @@ function GameContent() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${localStorage.getItem("token")}` 
         },
+        // We must send the mode so the backend knows whether to set status='active' (solo) or 'waiting' (collab)
         body: JSON.stringify({ mode }) 
     });
     const data = await res.json();
@@ -108,7 +115,7 @@ function GameContent() {
         });
         setGame(await stateRes.json());
     } else {
-        alert(data.error);
+        alert(data.error || "Failed to join");
     }
     setLoading(false);
   };
@@ -116,7 +123,6 @@ function GameContent() {
   const exitGame = async () => {
     if (!game) return;
 
-    // Notify backend to discard if collab, or just leave if solo
     await fetch("/api/game/quit", {
         method: "POST",
         headers: { 
@@ -129,7 +135,7 @@ function GameContent() {
     router.push("/dashboard");
   };
 
-  // --- RENDER: LOBBY ---
+  // --- 5. RENDER LOBBY (No Game Selected) ---
   if (!game) {
     return (
       <div style={{ maxWidth: '500px', margin: '50px auto', textAlign: 'center' }}>
@@ -162,13 +168,15 @@ function GameContent() {
     );
   }
 
-  // --- RENDER: GAME BOARD ---
-  const isSolo = !game.guest_id && !game.guest_name; // guest_name comes from JOIN in state route
+  // --- 6. RENDER GAME ---
+  
+  // FIX: Only consider it "Solo" if there is no guest AND we are not waiting for one.
+  const isSolo = !game.guest_id && !game.guest_name && game.status !== 'waiting';
 
   return (
     <div style={{ maxWidth: '500px', margin: '20px auto', textAlign: 'center', fontFamily: 'sans-serif' }}>
       
-      {/* Header Info */}
+      {/* Header / HUD */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
          <div style={{ textAlign: 'left' }}>
             {isSolo ? (
@@ -188,7 +196,7 @@ function GameContent() {
          </div>
       </div>
 
-      {/* Grid */}
+      {/* Board Grid */}
       <div style={{ 
           display: 'grid', 
           gridTemplateColumns: 'repeat(4, 1fr)', 
@@ -217,7 +225,7 @@ function GameContent() {
         )}
       </div>
 
-      {/* Status Messages */}
+      {/* Footer / Status */}
       {game.status === 'over' && (
           <div style={{ marginTop: '20px' }}>
             <h2 style={{ color: 'red' }}>GAME OVER!</h2>
@@ -228,10 +236,12 @@ function GameContent() {
       )}
       
       {game.status === 'waiting' && (
-          <p style={{ marginTop: '20px', color: '#666' }}>Waiting for Player 2 to join...</p>
+          <div style={{ marginTop: '20px', padding: '10px', background: '#fff3cd', borderRadius: '5px' }}>
+             <p style={{ margin: 0, fontWeight: 'bold' }}>Waiting for Player 2...</p>
+             <p style={{ margin: '5px 0' }}>Share Code: <span style={{ fontFamily: 'monospace', fontSize: '1.2rem' }}>{game.game_code}</span></p>
+          </div>
       )}
 
-      {/* Controls */}
       {game.status !== 'over' && (
           <div style={{ marginTop: '30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ color: '#888' }}>Use Arrow Keys to Move</span>
@@ -244,7 +254,6 @@ function GameContent() {
   );
 }
 
-// Wrap in Suspense for useSearchParams
 export default function Game2048() {
     return (
         <Suspense fallback={<div>Loading...</div>}>
@@ -253,21 +262,12 @@ export default function Game2048() {
     );
 }
 
-// Helper for Tile Colors
+// Utility for colors
 function getTileColor(value: number) {
     const colors: {[key:number]: string} = {
-        0: '#cdc1b4',
-        2: '#eee4da',
-        4: '#ede0c8',
-        8: '#f2b179',
-        16: '#f59563',
-        32: '#f67c5f',
-        64: '#f65e3b',
-        128: '#edcf72',
-        256: '#edcc61',
-        512: '#edc850',
-        1024: '#edc53f',
-        2048: '#edc22e'
+        0: '#cdc1b4', 2: '#eee4da', 4: '#ede0c8', 8: '#f2b179',
+        16: '#f59563', 32: '#f67c5f', 64: '#f65e3b', 128: '#edcf72',
+        256: '#edcc61', 512: '#edc850', 1024: '#edc53f', 2048: '#edc22e'
     };
     return colors[value] || '#3c3a32';
 }

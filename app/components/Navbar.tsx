@@ -22,7 +22,7 @@ export default function Navbar() {
 
   return (
     <nav style={{ padding: '1rem', background: '#333', color: '#fff', display: 'flex', gap: '20px' }}>
-      <Link href="/dashboard" style={{ color: 'white', textDecoration: 'none', fontWeight: 'bold' }}>Akinator Battle</Link>
+      <Link href="/dashboard" style={{ color: 'white', textDecoration: 'none', fontWeight: 'bold' }}>2048 Battle</Link>
       
       <div style={{ marginLeft: 'auto', display: 'flex', gap: '20px' }}>
         <Link href="/leaderboard" style={{ color: '#ccc' }}>Leaderboard</Link>
